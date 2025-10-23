@@ -1,5 +1,5 @@
-# Laboratorio 2 - Aplicaciones Distribuidas con IP
-## Sistema de Gestión de Calificaciones (Cliente-Servidor TCP)
+# Laboratorio 2 - Aplicaciones Distribuidas 
+## Sistema de Gestión de Calificaciones 
 
 Sistema cliente-servidor que permite gestionar calificaciones de estudiantes mediante sockets TCP. Implementado en dos versiones: sin hilos (un cliente) y con hilos (múltiples clientes).
 
@@ -10,14 +10,21 @@ Sistema cliente-servidor que permite gestionar calificaciones de estudiantes med
 ```
 Laboratorio_2/
 ├── sin_hilos/
-│   ├── server.py          # Servidor sin threading (1 cliente)
-│   └── client.py          # Cliente para servidor sin hilos
+│   ├── server.py                 # Servidor sin threading (1 cliente)
+│   └── client.py                 # Cliente para servidor sin hilos
+│   └── calificaciones.csv        # Archivo CSV para almacenar calificaciones (versión sin hilos)
+│   
 │
 ├── con_hilos/
-│   ├── server.py          # Servidor con threading (múltiples clientes)
-│   └── client.py          # Cliente para servidor con hilos
+│   ├── server.py                 # Servidor con threading (múltiples clientes)
+│   ├── client.py                 # Cliente para servidor con hilos
+│   └── calificaciones_hilos.csv  # Archivo CSV para almacenar calificaciones (versión con hilos)
+│    
+│── nrcs_server.py                # Servidor de validación de NRCs
 │
-└── README.md              # Este archivo
+│── nrcs.csv                      # Base de datos de NRCs válidos
+│
+└── README.md                     # Documentación del proyecto
 ```
 
 ---
@@ -189,6 +196,124 @@ python client.py
 | **Escalabilidad** | Baja | Alta |
 
 ---
+
+## Rúbrica de Evaluación y Evidencias
+
+
+
+
+
+##  Parte 1 — Funcionalidad Básica
+
+###  Servidor y cliente sin hilos 
+![Servidor sin hilos](imagenes/imagen1.png)  
+El servidor se levanta correctamente en modo secuencial, escuchando en el puerto configurado y esperando conexiones de clientes. Así mismo el cliente puede ver el menú funcionando correctamente y realizando las operaciones.
+
+Se cumple el levantamiento correcto sin hilos; pruebas de
+menú (agregar/buscar/listar) funcionan; CSV persiste datos. Evidencia en logs.
+
+###  Cliente con hilos 
+![Cliente con hilos](imagenes/imagen2.png)  
+Se demuestra el correcto funcionamiento del servidor CON HILOS escuchando en 127.0.0.1:5001 y esperando conexiones de clientes.
+
+###  Múltiples clientes conectados simultáneamente
+![Clientes concurrentes](imagenes/imagen3.png)  
+Se observan dos clientes conectados al mismo tiempo sin bloqueos, confirmando la ejecución concurrente y listos para realizar sus operaciones según el menú desplegado.
+
+###  Persistencia en archivo CSV
+![Archivo CSV actualizado](imagenes/imagen4.png)  
+El archivo `calificaciones.csv` mantiene los datos agregados después de la ejecución, demostrando persistencia y correcto manejo de almacenamiento.
+
+---
+
+## Demostración de Escalabilidad
+
+###  Servidor con hilos activo
+![Servidor con hilos](imagenes/imagen5.png)  
+El servidor multihilo se levanta correctamente y queda a la escucha de múltiples clientes en paralelo.
+
+Se observan varios clientes conectados al mismo tiempo sin bloqueos, confirmando la ejecución concurrente y se realizó los casos de prueba correspondientes para verificar su correcto funcionamiento.
+
+##  Parte 2 — Extensión con Servidor de NRCs (ComunicaciónInter-Servidores)
+
+###  Código completo del servidor NRC
+El servidor de NRCs maneja un archivo nrcs.csv con columnas: NRC, Materia.
+El servidor de calificaciones consulta vía socket (puerto 12346) antes de agregar o actualizar.
+
+![Código del servidor NRC](imagenes/imagen6.png)  
+El archivo `nrcs_server.py` implementa un servidor independiente que gestiona códigos de NRC con comandos `LISTAR` y `BUSCAR`.  
+Incluye manejo de sockets, archivos CSV y modularidad en funciones (`listar_nrcs`, `buscar_nrc`, `procesar_comando`).
+
+
+###  Servidor NRC en ejecución
+![Logs de hilos](imagenes/imagen7.png)  
+Servidor funcionando y respondiendo correctamente a los comandos.
+
+En los logs se evidencia la creación de varios hilos, lo que demuestra la atención paralela de peticiones.
+
+ **Análisis de limitaciones:**  
+Aunque el servidor soporta múltiples clientes en paralelo, podrían presentarse *race conditions* si varios hilos acceden al archivo CSV simultáneamente.  
+Se sugiere el uso de `threading.Lock()` (ya implementado) para garantizar exclusión mutua.
+
+
+###  Modificar el Servidor Concurrente de Calificaciones
+Se realiza la modificación del Servidor Principal: Integración: Consulta NRC antes de registrar/actualizar; rechazo si inválido; manejo de fallos en conexión (except). Mantiene concurrencia.
+
+![Código del servidor NRC](imagenes/imagen8.png) 
+
+Esta imagen muestra la función consultar_nrc(nrc)
+Ahí se ve que el servidor principal se conecta al servidor de NRCs y maneja errores de conexión (socket.timeout, ConnectionRefusedError, Exception).
+Demuestra la integración y manejo de fallos.
+
+
+
+### Validación del NRC antes de registrar 
+
+Muestra la función agregar_calificacion(), donde se llama a consultar_nrc(nrc) antes de escribir en el CSV.
+Ahí se valida el NRC y se rechaza si no es válido.
+
+![Código del Servidor NRC ](imagenes/imagen9.png) 
+
+Eso demuestra que el servidor consulta al NRC Server y rechaza si es inválido.
+
+  
+## Validación al actualizar calificación
+
+###  Modificación de la función actualizar_calificación para validar el NRC.
+![modificación de la función actualizar_calificación](imagenes/imagen10.png)  
+En la función actualizar_calificación se modificó para que se valide el nuevo NRC antes de guardar cambios.
+
+---
+## Flujo del sistema
+
+El servidor principal consulta al servidor de NRCs antes de registrar o actualizar calificaciones.
+Si el NRC no existe, se rechaza la operación.
+Además, se maneja correctamente la concurrencia mediante threading.Lock() y excepciones para fallos de conexión (timeout, ConnectionRefusedError).
+
+## Análisis y Reflexión
+
+Durante el desarrollo del laboratorio se implementaron dos servidores interconectados:
+uno principal que gestiona calificaciones y otro auxiliar que valida los NRCs.
+El principal desafío fue la comunicación entre servidores mediante sockets TCP, ya que se requería que el servidor principal consulte al servidor NRC antes de registrar o actualizar calificaciones.
+
+
+También fue necesario manejar errores de conexión, por ejemplo cuando el servidor de NRCs no estaba disponible, implementando bloques try-except con mensajes de error claros.
+Otro reto fue mantener la concurrencia segura, utilizando threading y Lock para evitar conflictos en el acceso al archivo CSV cuando varios clientes escriben simultáneamente.
+
+---
+
+
+## Lecciones Aprendidas (relación con CAP)
+
+Este laboratorio permitió comprender la teoría CAP en sistemas distribuidos:
+
+Consistencia (C): ambos servidores deben manejar la misma información válida de NRCs.
+
+Disponibilidad (A): el sistema sigue funcionando aunque el servidor de NRCs falle, gracias al manejo de excepciones.
+
+Tolerancia a particiones (P): si se interrumpe la conexión entre servidores, el principal no colapsa, sino que informa el error al cliente.
+
+De esta forma, el diseño implementado logra un balance entre consistencia y disponibilidad, priorizando la robustez y la integridad de los datos.
 
 ## Requisitos
 

@@ -2,4 +2,5 @@ ID,Nombre,Materia,Calificacion
 00287579,Charly Greenfield,PRG101,20
 L00243566,Pepe Pecas,BDD101,14
 001,Juan Pérez,MAT101,18.5
-003,Ana López,PRG101,19.0
+003,Ana López,PRG101,19.02,Diego Ponce,MAT101,10
+200,David Morales,RED101,50
